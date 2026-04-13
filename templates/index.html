@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Turing Machine Emulator — Binary Arithmetic</title>
+  <meta name="description" content="A visually stunning Turing Machine Emulator for binary addition and subtraction. Supports up to 10 operands. Step through each transition and watch the tape animate live."/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="/static/css/style.css"/>
+</head>
+<body>
+
+  <!-- Animated background particles -->
+  <div class="bg-grid" aria-hidden="true"></div>
+  <div class="bg-orbs" aria-hidden="true">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+  </div>
+
+  <div class="app-wrapper">
+
+    <!-- HEADER -->
+    <header class="header">
+      <div class="header-inner">
+        <div class="header-start">
+          <div class="logo">
+            <div class="logo-icon" aria-hidden="true">
+              <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="1" y="16" width="38" height="8" rx="4" fill="url(#g1)"/>
+                <circle cx="10" cy="20" r="5" fill="#fff" opacity="0.9"/>
+                <circle cx="10" cy="20" r="2.5" fill="#6c63ff"/>
+                <rect x="18" y="10" width="4" height="20" rx="2" fill="url(#g2)"/>
+                <defs>
+                  <linearGradient id="g1" x1="0" y1="0" x2="40" y2="0" gradientUnits="userSpaceOnUse">
+                    <stop stop-color="#6c63ff"/>
+                    <stop offset="1" stop-color="#00d4ff"/>
+                  </linearGradient>
+                  <linearGradient id="g2" x1="0" y1="0" x2="0" y2="40" gradientUnits="userSpaceOnUse">
+                    <stop stop-color="#a78bfa"/>
+                    <stop offset="1" stop-color="#00d4ff"/>
+                  </linearGradient>
+                </defs>
+              </svg>
+            </div>
+            <div class="logo-text">
+              <span class="logo-title">TM Emulator</span>
+              <span class="logo-sub">Binary Arithmetic</span>
+            </div>
+          </div>
+        </div>
+        <div class="header-end">
+          <span class="badge badge-live">Live Simulation</span>
+          <button type="button" class="header-phases-btn" id="btn-phases" aria-haspopup="dialog" aria-controls="modal-phases">Machine Phases</button>
+          <button type="button" class="header-help-btn" id="btn-help" aria-haspopup="dialog" aria-controls="modal-help" title="How it works">?</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="main">
+
+      <!-- LEFT PANEL -->
+      <aside class="panel panel-left">
+
+        <!-- INPUT SECTION -->
+        <section class="card input-card" aria-label="Input">
+          <h2 class="card-title">
+            <span class="card-title-icon">&#x2328;&#xFE0F;</span> Input Expression
+          </h2>
+
+          <!-- Number of operands selector -->
+          <div class="input-group operand-count-group">
+            <label class="input-label" for="operand-count">Number of Values</label>
+            <div class="select-wrapper">
+              <select id="operand-count" class="operand-count-select">
+                <option value="2" selected>2 Numbers</option>
+                <option value="3">3 Numbers</option>
+                <option value="4">4 Numbers</option>
+                <option value="5">5 Numbers</option>
+                <option value="6">6 Numbers</option>
+                <option value="7">7 Numbers</option>
+                <option value="8">8 Numbers</option>
+                <option value="9">9 Numbers</option>
+                <option value="10">10 Numbers</option>
+              </select>
+              <div class="select-arrow">&#9662;</div>
+            </div>
+          </div>
+
+          <!-- Dynamic operand inputs -->
+          <div class="input-group">
+            <label class="input-label">Binary Operands &amp; Operators</label>
+            <div id="operand-fields" class="operand-fields">
+              <!-- Dynamically generated -->
+            </div>
+            <div class="input-hint">Enter binary numbers using <kbd>0</kbd> <kbd>1</kbd> with <kbd>+</kbd> or <kbd>-</kbd> operators</div>
+            <div id="validation-msg" class="validation-msg" role="alert" aria-live="polite"></div>
+          </div>
+
+          <!-- Hidden input that holds the full expression -->
+          <input id="tm-input" type="hidden" />
+
+          <!-- Expression preview -->
+          <div class="expression-preview" id="expression-preview">
+            <span class="preview-label">Expression:</span>
+            <span class="preview-value mono" id="preview-value">&#8212;</span>
+          </div>
+
+          <div class="quick-examples">
+            <span class="quick-label">Quick examples:</span>
+            <div class="example-chips">
+              <button class="chip" data-example="101+11" data-count="2" title="101 + 11 = 1000">101+11</button>
+              <button class="chip" data-example="1100-101" data-count="2" title="1100 - 101 = 111">1100-101</button>
+              <button class="chip" data-example="101+11+10" data-count="3" title="101 + 11 + 10">101+11+10</button>
+              <button class="chip" data-example="1111+1-100+10" data-count="4" title="1111 + 1 - 100 + 10">1111+1-100+10</button>
+              <button class="chip" data-example="11+11" data-count="2" title="11 + 11 = 110">11+11</button>
+              <button class="chip" data-example="1010-10+1-1+11" data-count="5" title="1010 - 10 + 1 - 1 + 11">1010-10+1-1+11</button>
+            </div>
+          </div>
+
+          <div class="controls">
+            <button id="run-btn" class="btn btn-primary" aria-label="Run simulation">
+              <svg class="btn-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M8 5.14v14l11-7-11-7z" fill="currentColor"/>
+              </svg>
+              Run Simulation
+            </button>
+            <button id="reset-btn" class="btn btn-ghost" aria-label="Reset simulation" disabled>
+              <svg class="btn-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              Reset
+            </button>
+          </div>
+        </section>
+      </aside>
+
+      <!-- RIGHT PANEL -->
+      <section class="panel panel-right">
+
+        <!-- TAPE VISUALIZATION -->
+        <div class="card tape-card" aria-label="Tape Visualization">
+          <div class="tape-header">
+            <h2 class="card-title">
+              <span class="card-title-icon">&#x1F4FC;</span> Tape (Memory Strip)
+            </h2>
+            <div class="tape-meta" id="tape-meta">
+              <span class="meta-item" id="meta-step">Step: 0 / 0</span>
+            </div>
+          </div>
+
+          <!-- PLAIN ENGLISH EXPLANATION BOX -->
+          <div class="explain-box" id="explain-box" hidden>
+            <div class="explain-icon" id="explain-icon">&#x1F916;</div>
+            <div class="explain-text">
+              <div class="explain-main" id="explain-main">Loading&#8230;</div>
+              <div class="explain-detail" id="explain-detail"></div>
+            </div>
+            <div class="explain-phase" id="explain-phase"></div>
+          </div>
+
+          <!-- LIVE STATE MACHINE FLOW -->
+          <div id="state-flow" class="state-flow-wrap" hidden></div>
+
+          <div class="tape-container" id="tape-container" role="region" aria-label="Tape cells">
+            <div class="tape-placeholder">
+              <div class="placeholder-icon">&#x2699;&#xFE0F;</div>
+              <p>Enter binary values, select operators, and click <strong>Run Simulation</strong> to start.</p>
+            </div>
+          </div>
+
+          <!-- BIT POSITION INDICATOR -->
+          <div id="col-indicator" class="col-indicator" hidden></div>
+
+          <!-- Playback controls -->
+          <div class="playback-controls" id="playback-controls" hidden>
+            <button class="play-btn" id="btn-first" title="First Step" aria-label="Go to first step">&#x23EE;</button>
+            <button class="play-btn" id="btn-prev" title="Previous Step" aria-label="Previous step">&#x25C0;</button>
+            <button class="play-btn play-btn-main" id="btn-play" title="Play/Pause" aria-label="Play or pause animation">&#x25B6;</button>
+            <button class="play-btn" id="btn-next" title="Next Step" aria-label="Next step">&#x25B6;</button>
+            <button class="play-btn" id="btn-last" title="Last Step" aria-label="Go to last step">&#x23ED;</button>
+            <div class="speed-control">
+              <label for="speed-slider" class="speed-label">Speed</label>
+              <input type="range" id="speed-slider" min="1" max="10" value="5" class="speed-slider" aria-label="Animation speed"/>
+              <span id="speed-value" class="speed-value">5x</span>
+            </div>
+          </div>
+
+          <!-- Progress bar -->
+          <div class="progress-bar-wrap" id="progress-bar-wrap" hidden>
+            <div class="progress-bar" id="progress-bar"></div>
+          </div>
+        </div>
+
+        <!-- RESULT CARD -->
+        <section class="card result-card" id="result-card" aria-label="Result" hidden>
+          <h2 class="card-title">
+            <span class="card-title-icon">&#x1F3AF;</span> Result
+          </h2>
+          <div class="result-content">
+            <!-- Vertical column arithmetic display -->
+            <div class="arith-display" id="arith-display"></div>
+            <div class="result-binary">
+              <span class="result-label">Binary:</span>
+              <span class="result-value mono" id="result-binary"></span>
+            </div>
+            <div class="result-decimal">
+              <span class="result-label">Decimal:</span>
+              <span class="result-value" id="result-decimal"></span>
+            </div>
+            <!-- Intermediate steps for multi-operand -->
+            <div class="intermediate-results" id="intermediate-results" hidden></div>
+            <div class="result-status" id="result-status"></div>
+          </div>
+        </section>
+
+        <!-- TRANSITION TABLE -->
+        <div class="card transitions-card" id="transitions-card" hidden>
+          <h2 class="card-title">
+            <span class="card-title-icon">&#x1F4CB;</span> Step-by-Step Log
+            <span class="transitions-count badge-small" id="transitions-count">0 steps</span>
+          </h2>
+          <p class="table-hint">Each row shows one action the machine took. The highlighted row is the current step.</p>
+          <div class="table-wrap">
+            <table class="transitions-table" role="grid">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Machine Mode</th>
+                  <th>Saw</th>
+                  <th>Wrote</th>
+                  <th>Moved</th>
+                  <th>Switched To</th>
+                  <th>In Simple Words</th>
+                </tr>
+              </thead>
+              <tbody id="transitions-body">
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </section>
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+      <p>Theory of Automata — Turing Machine Emulator for Binary Arithmetic · Built with Python Flask + HTML/CSS/JS</p>
+    </footer>
+  </div>
+
+  <!-- How it works (modal) -->
+  <div class="modal-overlay" id="modal-help" hidden role="dialog" aria-modal="true" aria-labelledby="modal-help-title" aria-hidden="true">
+    <div class="modal-panel">
+      <div class="modal-header">
+        <h2 id="modal-help-title" class="modal-title"><span class="card-title-icon">&#x1F4A1;</span> How it Works</h2>
+        <button type="button" class="modal-close" data-modal-close="modal-help" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <ul class="guide-list">
+          <li><span class="guide-dot scan"></span><strong>Scan</strong> &mdash; Reads your input left to right to find the operators (+/&minus;)</li>
+          <li><span class="guide-dot add"></span><strong>Calculate</strong> &mdash; Adds or subtracts binary numbers pair by pair, left to right</li>
+          <li><span class="guide-dot carry"></span><strong>Carry/Borrow</strong> &mdash; If a bit overflows, it carries over to the next position</li>
+          <li><span class="guide-dot clean"></span><strong>Cleanup</strong> &mdash; Removes operators and writes the final answer on the tape</li>
+          <li><span class="guide-dot ok"></span><strong>Done &#10003;</strong> &mdash; Machine halts and displays the result</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Machine phases (modal) -->
+  <div class="modal-overlay" id="modal-phases" hidden role="dialog" aria-modal="true" aria-labelledby="modal-phases-title" aria-hidden="true">
+    <div class="modal-panel modal-panel-wide">
+      <div class="modal-header">
+        <h2 id="modal-phases-title" class="modal-title"><span class="card-title-icon">&#x1F4D0;</span> Machine Phases </h2>
+        <button type="button" class="modal-close" data-modal-close="modal-phases" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="states-list" id="states-legend">
+          <div class="state-pill" data-state="q0">q0 <span>Reading input</span></div>
+          <div class="state-pill" data-state="q_find_op">q_find_op <span>Scanning for +/&minus;</span></div>
+          <div class="state-pill" data-state="q_add">q_add <span>Adding bits</span></div>
+          <div class="state-pill" data-state="q_carry">q_carry <span>Carrying over 1</span></div>
+          <div class="state-pill" data-state="q_subtract">q_subtract <span>Subtracting bits</span></div>
+          <div class="state-pill" data-state="q_borrow">q_borrow <span>Borrowing 1</span></div>
+          <div class="state-pill" data-state="q_cleanup">q_cleanup <span>Writing answer</span></div>
+          <div class="state-pill state-accept" data-state="q_accept">q_accept <span>&#10003; Done!</span></div>
+          <div class="state-pill state-reject" data-state="q_reject">q_reject <span>&#10007; Invalid input</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading overlay -->
+  <div class="loading-overlay" id="loading-overlay" hidden aria-hidden="true">
+    <div class="loading-spinner">
+      <div class="spinner-ring"></div>
+      <div class="spinner-ring ring-2"></div>
+      <div class="spinner-ring ring-3"></div>
+    </div>
+    <p class="loading-text">Simulating Turing Machine&#8230;</p>
+  </div>
+
+  <script src="/static/js/script.js"></script>
+</body>
+</html>

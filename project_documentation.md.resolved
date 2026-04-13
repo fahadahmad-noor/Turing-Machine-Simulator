@@ -1,0 +1,329 @@
+# Turing Machine Binary Arithmetic Emulator
+## Complete Project Documentation — Demo & Viva Guide
+
+---
+
+## 1. What is this Project?
+
+This is a **web-based Turing Machine Emulator** that simulates binary addition and subtraction step by step, visualizing every move the machine makes on its tape.
+
+It is built as a **Theory of Automata (TOA)** project to demonstrate:
+- How a Turing Machine is formally defined
+- How it can be used to compute binary arithmetic
+- What states, transitions, carry, and borrow look like at the machine level
+
+**Tech Stack:**
+| Layer | Technology |
+|---|---|
+| Backend (logic) | Python + Flask |
+| Frontend | HTML5 + Vanilla CSS + JavaScript |
+| TM Engine | [turing_machine.py](file:///c:/Users/fahad/Documents/toa/turing_machine.py) — pure Python |
+| API | REST (JSON over HTTP) |
+
+---
+
+## 2. Formal Turing Machine Definition (7-Tuple)
+
+A Turing Machine is formally defined as:
+
+**M = (Q, Σ, Γ, δ, q₀, B, F)**
+
+| Component | Symbol | Value in this project |
+|---|---|---|
+| Set of states | Q | {q0, q_find_op, q_add_start, q_sub_start, q_add, q_carry, q_subtract, q_borrow, q_cleanup, q_accept, q_reject} |
+| Input alphabet | Σ | {0, 1, +, −} |
+| Tape alphabet | Γ | {0, 1, +, −, B} (B = blank) |
+| Transition function | δ | Defined per state × symbol → (write, move, next_state) |
+| Start state | q₀ | q0 |
+| Blank symbol | B | 'B' |
+| Accepting states | F | {q_accept} |
+
+---
+
+## 3. All States — What Each One Does
+
+| State | Icon | Phase | Description |
+|---|---|---|---|
+| `q0` | 👁️ | Scan | **Start state.** Reads input left-to-right, validates it, detects whether `+` or `−` operator exists |
+| `q_find_op` | 🔍 | Scan | Continues scanning through the second (right) operand to find the blank at the end |
+| `q_add_start` | 📍 | Position | After finding the blank, moves the head **left** to reach the rightmost bit (LSB) before addition |
+| `q_sub_start` | 📍 | Position | Same as above but for subtraction |
+| `q_add` | ➕ | Calculate | Adds corresponding bits one at a time from **right to left** (LSB → MSB). Writes the result bit |
+| `q_carry` | ↗️ | Carry | A carry occurred (1+1=10 in binary). Propagates the extra 1 to the next column |
+| `q_subtract` | ➖ | Calculate | Subtracts corresponding bits right-to-left. Writes the result bit |
+| `q_borrow` | ↙️ | Borrow | A borrow occurred (couldn't subtract). Borrows 1 from the next higher bit |
+| `q_cleanup` | ✍️ | Write | Removes the operator, formats the tape, and writes the clean binary result |
+| `q_accept` | 🎉 | Done | **Halting accept state.** Machine stops — answer is on the tape |
+| `q_reject` | ⛔ | Error | **Halting reject state.** Input was invalid — machine stops and reports error |
+
+---
+
+## 4. How the Machine Processes Input
+
+### Input Format
+The tape starts loaded with the input string, e.g.:
+```
+| 1 | 0 | 1 | + | 1 | 1 | B | ...
+  0   1   2   3   4   5   6
+```
+
+### Phase 1 — Scan (q0 → q_find_op)
+```
+Head starts at position 0
+Reads: 1  → writes 1, moves R, stays q0
+Reads: 0  → writes 0, moves R, stays q0
+Reads: 1  → writes 1, moves R, stays q0
+Reads: +  → writes +, moves R, switches to q_find_op   ← OPERATOR FOUND
+Reads: 1  → writes 1, moves R, stays q_find_op
+Reads: 1  → writes 1, moves R, stays q_find_op
+Reads: B  → blank found, moves L, switches to q_add_start
+```
+
+### Phase 2 — Position (q_add_start)
+```
+Head moves LEFT to the rightmost bit (LSB) of the full expression
+This is the bit at position 5: "1" (rightmost of second operand)
+```
+
+### Phase 3 — Calculate (q_add / q_carry)
+
+> Example: 101 + 11 (binary) = 1000
+
+The machine works **column by column, right to left**, same as paper math:
+
+```
+Column 0 (rightmost): 1 + 1 = 10  → write 0, carry = 1  → goes to q_carry
+Column 1:             0 + 1 + 1(carry) = 10 → write 0, carry = 1 → q_carry
+Column 2:             1 + 0 + 1(carry) = 10 → write 0, carry = 1 → q_carry
+Column 3 (extra):     0 + 0 + 1(carry) = 1  → write 1, carry = 0 → q_add/accept
+Result: 1000
+```
+
+### Phase 4 — Cleanup (q_cleanup → q_accept)
+```
+The operator and original numbers are overwritten
+Clean binary result "1000" is written starting at position 0
+Machine moves right through result bits writing each one
+Final step → q_accept (HALT)
+```
+
+---
+
+## 5. Binary Addition — How Carry Works
+
+```
+  1 0 1        (5 in decimal)
++ 0 1 1        (3 in decimal)
+─────────
+  1 0 0 0      (8 in decimal)
+
+Column 0:  1+1 = 10  → bit=0, carry=1
+Column 1:  0+1+1 = 10 → bit=0, carry=1
+Column 2:  1+0+1 = 10 → bit=0, carry=1
+Column 3:  0+0+1 = 1  → bit=1, carry=0
+```
+
+On the tape, **carry** means state `q_carry` fires and the machine moves left to handle the overflow.
+
+---
+
+## 6. Binary Subtraction — How Borrow Works
+
+```
+  1 0 0 0      (8 in decimal)
+- 0 0 0 1      (1 in decimal)
+─────────
+  0 1 1 1      (7 in decimal)
+
+Column 0:  0−1 → can't subtract! BORROW from column 1
+Column 1:  0−0, but no bit here to borrow from → borrow from column 2
+Column 2:  0−0, borrow from column 3
+Column 3:  1−0 = 1, lend the 1 down the chain
+```
+
+On the tape, **borrow** means state `q_borrow` fires and the machine propagates the borrow leftward.
+
+---
+
+## 7. UI Features Walkthrough
+
+### ① Input Expression
+- Type any valid binary expression: `101+11`, `1100-101`, `1111+1`
+- **Real-time validation** as you type — green ✓ or red ✗
+- **Quick example chips** — click any chip to auto-fill the input
+- Press `Enter` or click **Run Simulation** to start
+
+### ② Phase Flow Bar (Live State Machine Diagram)
+```
+👁 SCAN → 🔍 FIND OP → 📍 POSITION → ⚡ CALCULATE → ✍️ WRITE → 🎉 DONE
+```
+- Shows the current machine phase with a **glowing purple pulse**
+- Completed phases show a **green ✓**
+- Future phases are dimmed
+
+### ③ Plain-English Explanation Box
+- Every step explained in **simple human language** — no jargon
+- Shows what the machine "saw," what it "wrote," and why
+- Phase badge (SCANNING / CALCULATING / CARRY! / BORROW! etc.)
+
+### ④ Tape (Memory Strip)
+- The actual Turing Machine tape with color-coded zones:
+  - 🟣 **Left operand** — purple background
+  - 🟠 **Operator** — orange (very visible)
+  - 🔵 **Right operand** — cyan background
+  - 🟢 **Result being written** — green
+- **▼ head indicator** bounces above the current position
+- **cyan glow** on carry step, **pink glow** on borrow step
+- Floating **+1 / −1 bubbles** rise above the cell during carry/borrow
+
+### ⑤ Bit Position Indicator
+- Below the tape during calculation: `3  2  1  [0]`
+- Shows which bit column (from LSB=0) is currently being processed
+- Active column highlighted (purple=normal, cyan=carry, pink=borrow)
+- Completed columns shown in green
+
+### ⑥ Playback Controls
+| Button | Action |
+|---|---|
+| ⏮ | Jump to first step |
+| ◀ | Previous step |
+| ▶ (main) | Play / Pause animation |
+| ▶ | Next step |
+| ⏭ | Jump to last step |
+| Speed slider | 1x – 10x playback speed |
+
+**Keyboard shortcuts:** Arrow keys (←→), Space (play/pause), Home/End
+
+### ⑦ Result Card (Vertical Arithmetic Display)
+- Shows the computation as stacked column math (like paper):
+```
+         1 0 1
+    +    0 1 1
+    ─────────
+    =    1 0 0 0
+```
+- Active column highlights as machine progresses
+- Carry/borrow bubbles appear in the carry row
+
+### ⑧ Step-by-Step Log Table
+- Full trace: every step, state, symbol read, symbol written, direction, next state
+- Current step highlighted in purple
+- Table scrolls **internally** — page never jumps
+
+---
+
+## 8. Demo Script (Step by Step)
+
+### Opening Demo (~2 minutes)
+
+1. Open `http://localhost:5000`
+2. Say: *"This is a Turing Machine Emulator for binary arithmetic. It doesn't just calculate — it shows every individual step the machine takes."*
+3. Click chip **`101+11`** (binary 5 + 3 = 8)
+4. Click **Run Simulation**
+
+### Walking Through the Simulation
+
+5. Point to the **Phase Flow Bar** — "This shows which phase the machine is in. Right now it's scanning."
+6. Click **Next (▶)** a few times slowly — point to:
+   - The tape head moving right through the input
+   - The phase changing from SCAN → FIND OP
+7. Keep stepping until you hit **POSITION** phase
+   - Explain: "The machine has found both numbers and the operator. Now it's moving to the rightmost bit to start calculating — same as how we do addition on paper, right to left."
+8. Step into **CALCULATE** phase
+   - Point to the **color-coded tape** — "Notice the left number is purple, the operator is orange, and the right number is cyan."
+   - Point to **Bit Position strip** — "It's processing bit 0 — the rightmost column."
+9. Hit a **carry step** (q_carry)
+   - Point to the **cyan glow** on the tape cell and the **+1 bubble**
+   - "1 + 1 = 10 in binary. The machine records a carry and moves to the next column."
+10. Hit **Play** and let it finish
+11. Point to **Result Card** — show the vertical arithmetic layout with columns highlighted
+
+### Subtraction Demo (~1 minute)
+
+12. Click Reset, enter **`1000-1`** (8−1=7)
+13. Play it — point to the **pink borrow glow** when `q_borrow` fires
+14. Show the result: 0111 (7 in decimal)
+
+---
+
+## 9. Viva Q&A
+
+**Q: What is a Turing Machine?**
+> A Turing Machine is a mathematical model of computation invented by Alan Turing in 1936. It consists of an infinite tape, a read/write head, a finite set of states, and a transition function. It is the most powerful model of computation — anything computable can be computed by a TM.
+
+**Q: What is the formal definition of this TM?**
+> M = (Q, Σ, Γ, δ, q₀, B, F) where:
+> - Q = {q0, q_find_op, q_add_start, q_sub_start, q_add, q_carry, q_subtract, q_borrow, q_cleanup, q_accept, q_reject}  
+> - Σ = {0, 1, +, −}
+> - Γ = {0, 1, +, −, B}
+> - q₀ = q0 (start)
+> - B = blank
+> - F = {q_accept}
+
+**Q: Why does binary addition start from the right (LSB)?**
+> Because carry propagates from the lowest significant bit to the highest, just like decimal addition. If you start from the MSB, you can't know whether a carry will come from the right. So computing from LSB to MSB ensures each bit's carry is available for the next column.
+
+**Q: What happens during a carry?**
+> When two bits add to 2 (1+1=10 in binary), the current column result is 0 and a 1 is carried to the next column. The machine enters state `q_carry` and when computing the next column, adds this extra 1 to the sum.
+
+**Q: What happens during a borrow?**
+> When the top bit is smaller than the bottom bit (e.g., 0−1), the machine enters `q_borrow` and borrows 1 from the next column to the left. That borrowed 1 makes the current digit effectively worth 2 (in binary), so 0−1 with borrow becomes 10−1 = 1.
+
+**Q: Is this TM deterministic or non-deterministic?**
+> It is **deterministic**. For every (state, symbol) pair, there is exactly one transition — one write action, one direction, one next state.
+
+**Q: Can a Turing Machine compute any function?**
+> According to the **Church-Turing Thesis**, yes. Any function that is computable by any algorithm can be computed by a Turing Machine. This is why TMs are used as the theoretical foundation of computer science.
+
+**Q: What is q_reject and when does it fire?**
+> q_reject is the halting reject state. It fires when the input is invalid — for example, no operator found, two operators, empty operand, or characters other than 0, 1, +, −. The machine immediately halts and does not process further.
+
+**Q: What is the time complexity of this TM?**
+> The number of steps is O(n) where n is the number of bits in the longest operand. The scan phase takes n steps, the calculation phase takes n steps (one per bit column), cleanup takes n steps. So total is O(n) — linear in the input length.
+
+**Q: Why use Flask for the backend?**
+> Flask is used to serve the HTML page and expose a `/simulate` REST API endpoint. The TM logic runs in Python (backend), and the frontend JavaScript calls the API, displays the step-by-step trace, and handles all the animations. This separates concerns cleanly.
+
+**Q: What is the difference between Σ (input alphabet) and Γ (tape alphabet)?**
+> Σ is the set of symbols allowed in the input (given to the machine before it starts). Γ is the full set of symbols the tape can ever contain — it includes Σ plus the blank symbol B. So Σ ⊆ Γ, and B ∉ Σ.
+
+**Q: Can this TM handle numbers that produce a carry beyond the input length?**
+> Yes. If the addition of n-bit numbers produces an (n+1)-bit result (overflow carry), the machine writes an extra '1' at the beginning of the result. For example, `1+1 = 10` (2 bits from 1-bit inputs) is handled correctly.
+
+**Q: What is the halting problem?**
+> The halting problem asks: given a TM and an input, will the TM ever halt? Turing proved this is **undecidable** — no algorithm can answer this for all TMs. However, our TM always halts because the tape length is finite and the machine always moves right through the input then halts at q_accept or q_reject.
+
+---
+
+## 10. Project File Structure
+
+```
+toa/
+├── app.py              ← Flask server, REST API endpoints
+├── turing_machine.py   ← TM engine: states, transitions, step recording
+├── run.bat             ← One-click startup script (Windows)
+├── requirements.txt    ← Python dependencies (flask, flask-cors)
+├── templates/
+│   └── index.html      ← Main UI page
+└── static/
+    ├── css/style.css   ← All styling, animations, themes
+    └── js/script.js    ← Frontend logic: simulation control, tape rendering,
+                           phase flow, color zones, column indicator
+```
+
+---
+
+## 11. How to Run
+
+```bash
+# Option 1: Double-click run.bat
+# Option 2: Manual
+pip install flask flask-cors
+python app.py
+# Open: http://localhost:5000
+```
+
+---
+
+*Project: Theory of Automata — Turing Machine Emulator for Binary Arithmetic*  
+*Stack: Python Flask + HTML/CSS/JavaScript*
