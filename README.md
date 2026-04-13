@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 # Turing Machine Emulator for Binary Arithmetic
 
 
